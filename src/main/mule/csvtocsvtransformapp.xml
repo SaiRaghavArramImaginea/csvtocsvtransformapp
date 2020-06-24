@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b9efc19d-881a-42e1-9399-f4361d6a7076" >
+		<http:listener-connection host="0.0.0.0" port="8086" />
+	</http:listener-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="0b4e783f-73d2-485a-ad09-9d240ce861b8" >
+		<file:connection workingDir="/home/sairaghav/AnypointStudio/studio-workspace/csvtocsvtransformapp" />
+	</file:config>
+	<file:config name="File_Config1" doc:name="File Config" doc:id="0754c1a2-3c70-4c7c-88d1-c322480324a8" >
+		<file:connection workingDir="/home/sairaghav/AnypointStudio/studio-workspace/csvtocsvtransformapp" />
+	</file:config>
+	<flow name="csvtocsvtransformappFlow" doc:id="c5c7e76b-2007-4d17-b327-01153b99129e" >
+		<http:listener doc:name="Listener" doc:id="4f4a2d8e-679d-487f-856e-37814226ab47" config-ref="HTTP_Listener_config" path="/csvtocsv" outputMimeType="application/csv"/>
+		<file:read doc:name="Read" doc:id="607e9d27-b7fb-4f40-8231-c928e5d58b52" config-ref="File_Config" path="/home/sairaghav/AnypointStudio/studio-workspace/mule/input/Source.csv" outputMimeType="application/csv"/>
+		<logger level="INFO" doc:name="Logger" doc:id="a099cc8c-4b19-4421-ac36-126eba664b4b" message="#[payload]"/>
+		<ee:transform doc:name="StudentVsCourse Json" doc:id="f5f08f9c-b9f7-4291-8714-73c24e46ff1f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+ var studentsGrp = payload groupBy $.Course 
+ 
+ var itStudents = (payload map(student, index) -> 
+  {
+  studentId: student.StudentID,
+  studentName: student.StudentName,
+  semester: student.Semester,
+  course: student.Course,
+  college: student.College
+ } 
+) filter ($.course == 'IT') 
+ 
+ var cseStudents = (payload map(student, index) -> 
+  {
+  studentId: student.StudentID,
+  studentName: student.StudentName,
+  semester: student.Semester,
+  course: student.Course,
+  college: student.College
+ } 
+) filter ($.course == 'Computer Science') 
+ ---
+{
+	IT : itStudents,
+	ComputerScience : cseStudents
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="courseStudentsMap" ><![CDATA[%dw 2.0
+output application/json
+ var studentsGrp = payload groupBy $.Course 
+ 
+ var itStudents = (payload map(student, index) -> 
+  {
+  studentId: student.StudentID,
+  studentName: student.StudentName,
+  semester: student.Semester,
+  course: student.Course,
+  college: student.College
+ } 
+) filter ($.course == 'IT') 
+ 
+ var cseStudents = (payload map(student, index) -> 
+  {
+  studentId: student.StudentID,
+  studentName: student.StudentName,
+  semester: student.Semester,
+  course: student.Course,
+  college: student.College
+ } 
+) filter ($.course == 'Computer Science') 
+ ---
+{
+	IT : itStudents,
+	ComputerScience : cseStudents
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="IT Course csv conversion" doc:id="1f6e7b0e-dcb3-4489-87ee-e53fb5b1cfeb">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/csv quoteValues=true, separator="|~", header=true, escape="\""
+ ---
+
+ vars.courseStudentsMap.IT map((student, indexOfStudent) -> {
+  studentId: student.studentId,
+  studentName: student.studentName,
+  semester: student.semester,
+  course: student.course,
+  college: student.college
+ })]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="IT Courses write" doc:id="94ca7679-e3e6-49e0-af1b-08443dcc45c6" config-ref="File_Config1" path="/home/sairaghav/AnypointStudio/studio-workspace/mule/output/IT.csv"/>
+		<ee:transform doc:name="CSE Course csv conversion" doc:id="46970eb4-093c-4f0d-807f-1e088cfb1225" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv quoteValues=true, separator="|~", header=true, escape="\""
+ ---
+
+ vars.courseStudentsMap.ComputerScience map((student, indexOfPerson) -> {
+ studentId: student.studentId,
+  studentName: student.studentName,
+  semester: student.semester,
+  course: student.course,
+  college: student.college
+ })]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="CSE Courses write" doc:id="f1a36429-415d-470b-b2bb-6d166b0ca4bb" config-ref="File_Config1" path="/home/sairaghav/AnypointStudio/studio-workspace/mule/output/CSE.csv" />
+	</flow>
+</mule>
